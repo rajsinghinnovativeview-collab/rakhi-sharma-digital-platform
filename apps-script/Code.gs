@@ -218,7 +218,7 @@ function cmsConfig_(type,role){
   const admin=role==='administrator',content=role==='content manager',tour=role==='tourism operator';
   const config={
     content:{table:'SITE_CONTENT',fields:['Title','Details','Category','Link','Image URL','Audience','Email','Start At','End At'],roles:admin||content},
-    products:{table:'ART_CATALOG',fields:['Title','Description','Category','Artwork Type','Medium','Dimensions','Price','Stock Qty','Image URL','Gallery URLs','Featured','Booking URL'],roles:admin||content},
+    products:{table:'ART_CATALOG',fields:['Title','Description','Category','Artwork Type','Medium','Dimensions','Price','Stock Qty','Image URL','Gallery URLs','Featured','Booking URL'],roles:admin},
     experiences:{table:'EXPERIENCES',fields:['Title','Description','Category','Price INR','Duration','Meeting Point','Image URL','Contact URL','Operator Name','Operator Contact','Availability'],roles:admin||tour},
     information:{table:'TFC_INFORMATION',fields:['Section','Title','Details','Address or Meeting Point','Verified Contact','Source / Verification Note'],roles:admin||tour}
   };
