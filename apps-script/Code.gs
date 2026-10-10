@@ -58,6 +58,8 @@ function doPost(e) {
       case 'feedback': case 'submitfeedback': result=apiSubmitFeedback(data); break;
       case 'admindashboard': result=apiAdminDashboard(data.token); break;
       case 'adminupdate': result=apiAdminUpdate(data.token,data); break;
+      case 'adminedit': result=apiAdminEdit(data.token,data); break;
+      case 'admincreate': result=apiAdminCreate(data.token,data); break;
       default: throw new Error('Invalid POST action.');
     }
     return respond_(result);
@@ -107,7 +109,7 @@ function apiBootstrap(token){
   const products=readRows_(sheet_('ART_CATALOG')).filter(r=>String(r.Status).toLowerCase()==='published'&&Number(r['Stock Qty'])>0).map(r=>pick_(r,['Artc ID','Title','Description','Price','Image URL','Status','Booking URL','Category','Artwork Type','Stock Qty','Medium','Dimensions','Gallery URLs','Featured']));
   const experiences=readRows_(sheet_('EXPERIENCES')).filter(r=>sheetValue_(r.Status)==='published'&&isSheetYes_(r['Permissions Verified'])&&sheetValue_(r.Availability)==='available').map(r=>pick_(r,['Experience ID','Title','Description','Category','Price INR','Duration','Meeting Point','Image URL','Contact URL','Operator Name','Availability']));
   const info=readRows_(sheet_('TFC_INFORMATION')).filter(r=>sheetValue_(r.Status)==='published'&&String(r['Verified By']||'').trim()&&r['Verified On']).map(r=>pick_(r,['Section','Title','Details','Address or Meeting Point','Verified Contact','Source / Verification Note','Verified On']));
-  const content=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)).filter(r=>audiencePublic_(r.Audience)).map(r=>pick_(r,['Title','Details','Link','Category']));
+  const content=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)).filter(r=>audiencePublic_(r.Audience)).map(r=>pick_(r,['Content ID','Title','Details','Link','Category','Image URL','Created At']));
   let user=null;
   try{const account=requireUser_(token);user=publicUser_(account);}catch(ignore){}
   return {ok:true,brand:{name:getSetting_('Platform Name','Rakhi Sharma'),art:getSetting_('Art Brand','Rak.Hi Arts'),tfc:getSetting_('TFC Brand','Orchha with Rakhi'),phone:getSetting_('Contact Phone','9219862077'),instagram:publicHttps_(getSetting_('Instagram',''))},products,experiences,info,content,user,payments:'Contact Rakhi directly; online payments are not connected.'};
@@ -157,11 +159,14 @@ function apiCompletePasswordReset(data){
 }
 function apiCustomerDashboard(token){
   const user=requireUser_(token),email=email_(user.Email),id=String(user.ID);
-  const orders=readRows_(sheet_('ORDER_REQUESTS')).filter(r=>email_(r.Email)===email).map(r=>pick_(r,['Order ID','Created At','Item Summary','Subtotal INR','Shipping INR','Total INR','Payment Status','Order Status','Tracking Details','Updated At']));
+  const customerOrders=readRows_(sheet_('ORDER_REQUESTS')).filter(r=>email_(r.Email)===email);
+  const orders=customerOrders.map(r=>pick_(r,['Order ID','Created At','Item Summary','Subtotal INR','Shipping INR','Total INR','Payment Status','Order Status','Tracking Details','Updated At']));
   const art=readRows_(sheet_('ART_ENQUIRIES')).filter(r=>email_(r.Email)===email).map(r=>pick_(r,['Enquiry ID','Created At','Artwork Type','Description','Requested Date','Status','Updated At']));
   const tfc=readRows_(sheet_('TFC_REQUESTS')).filter(r=>email_(r.Email)===email).map(r=>pick_(r,['Request ID','Created At','Request Type','Preferred Date','Party Size','Message','Status','Staff Response','Updated At']));
-  const notices=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)&&noticeForUser_(r,user)).map(r=>pick_(r,['Title','Details','Link','Category','Created At']));
-  return {ok:true,user:publicUser_(user),orders,art,tfc,notices};
+  const notices=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)&&noticeForUser_(r,user)).map(r=>pick_(r,['Content ID','Title','Details','Link','Category','Image URL','Created At']));
+  const lastAddress=customerOrders.filter(r=>r.Address&&r.City&&r.State&&r['PIN Code']).sort((a,b)=>new Date(b['Created At']).getTime()-new Date(a['Created At']).getTime())[0];
+  const savedAddress=lastAddress?pick_(lastAddress,['Recipient Name','Address','City','State','PIN Code']):null;
+  return {ok:true,user:publicUser_(user),orders,art,tfc,notices,savedAddress};
 }
 function apiUpdateProfile(token,data){const user=requireUser_(token),name=safeText_(data&&data.fullName,100),phone=safeText_(data&&data.phone||'',30);updateById_('CUSTOMERS',user.ID,{'Full Name':name,'Phone':phone});return {ok:true};}
 function apiChangePassword(token,data){
@@ -205,14 +210,79 @@ function apiSubmitFeedback(data){
 }
 function apiAdminDashboard(token){
   requireAdmin_(token,['Administrator','Content Manager','Tourism Operator']);const user=requireUser_(token),role=String(user.Role);
-  const admin=role==='Administrator',artAllowed=admin||role==='Content Manager',tfcAllowed=admin||role==='Tourism Operator';
-  return {ok:true,role,products:artAllowed?readRows_(sheet_('ART_CATALOG')).map(r=>pick_(r,APP.TABLES.ART_CATALOG.filter(h=>h!=='Admin Notes'))):[],orders:admin?readRows_(sheet_('ORDER_REQUESTS')).map(r=>pick_(r,APP.TABLES.ORDER_REQUESTS.filter(h=>!['Items JSON','Staff Notes','Request Key'].includes(h)))):[],art:admin?readRows_(sheet_('ART_ENQUIRIES')).map(r=>pick_(r,APP.TABLES.ART_ENQUIRIES.filter(h=>h!=='Staff Notes'))):[],tfc:tfcAllowed?readRows_(sheet_('TFC_REQUESTS')).map(r=>pick_(r,APP.TABLES.TFC_REQUESTS.filter(h=>!['Staff Response','Assigned Staff'].includes(h)))):[],feedback:tfcAllowed?readRows_(sheet_('TFC_FEEDBACK')).map(r=>pick_(r,APP.TABLES.TFC_FEEDBACK.filter(h=>h!=='Staff Notes'))):[],content:artAllowed?readRows_(sheet_('SITE_CONTENT')):[],experiences:tfcAllowed?readRows_(sheet_('EXPERIENCES')):[],information:tfcAllowed?readRows_(sheet_('TFC_INFORMATION')):[]};
+  const admin=role==='Administrator',artAllowed=admin,contentAllowed=admin||role==='Content Manager',tfcAllowed=admin||role==='Tourism Operator';
+  return {ok:true,role,products:artAllowed?readRows_(sheet_('ART_CATALOG')).map(r=>pick_(r,APP.TABLES.ART_CATALOG.filter(h=>h!=='Admin Notes'))):[],orders:admin?readRows_(sheet_('ORDER_REQUESTS')).map(r=>pick_(r,APP.TABLES.ORDER_REQUESTS.filter(h=>!['Items JSON','Staff Notes','Request Key'].includes(h)))):[],art:admin?readRows_(sheet_('ART_ENQUIRIES')).map(r=>pick_(r,APP.TABLES.ART_ENQUIRIES.filter(h=>h!=='Staff Notes'))):[],tfc:tfcAllowed?readRows_(sheet_('TFC_REQUESTS')).map(r=>pick_(r,APP.TABLES.TFC_REQUESTS.filter(h=>!['Staff Response','Assigned Staff'].includes(h)))):[],feedback:tfcAllowed?readRows_(sheet_('TFC_FEEDBACK')).map(r=>pick_(r,APP.TABLES.TFC_FEEDBACK.filter(h=>h!=='Staff Notes'))):[],content:contentAllowed?readRows_(sheet_('SITE_CONTENT')):[],experiences:tfcAllowed?readRows_(sheet_('EXPERIENCES')):[],information:tfcAllowed?readRows_(sheet_('TFC_INFORMATION')):[]};
+}
+/** CMS draft create/update operations: server-side field allowlists and role checks are mandatory. */
+function cmsConfig_(type,role){
+  const admin=role==='administrator',content=role==='content manager',tour=role==='tourism operator';
+  const config={
+    content:{table:'SITE_CONTENT',fields:['Title','Details','Category','Link','Image URL','Audience','Email','Start At','End At'],roles:admin||content},
+    products:{table:'ART_CATALOG',fields:['Title','Description','Category','Artwork Type','Medium','Dimensions','Price','Stock Qty','Image URL','Gallery URLs','Featured','Booking URL'],roles:admin},
+    experiences:{table:'EXPERIENCES',fields:['Title','Description','Category','Price INR','Duration','Meeting Point','Image URL','Contact URL','Operator Name','Operator Contact','Availability'],roles:admin||tour},
+    information:{table:'TFC_INFORMATION',fields:['Section','Title','Details','Address or Meeting Point','Verified Contact','Source / Verification Note'],roles:admin||tour}
+  };
+  const result=config[type];
+  if(!result||!result.roles)throw new Error('Your role cannot manage this collection.');
+  return result;
+}
+function cmsFields_(type,input,allowed){
+  const data={};
+  for(const key of allowed)if(Object.prototype.hasOwnProperty.call(input,key)){
+    const val=input[key];
+    if(['Image URL','Link','Booking URL','Gallery URLs','Contact URL'].includes(key)){
+      data[key]=val?httpsUrl_(val,true):'';
+    }else if(['Price','Price INR','Stock Qty'].includes(key)){
+      const num=Number(val);
+      if(!Number.isFinite(num)||num<0||key==='Stock Qty'&&!Number.isInteger(num))throw new Error('Check numeric field: '+key);
+      data[key]=num;
+    }else data[key]=safeText_(val==null?'':String(val),key==='Details'||key==='Description'?3000:500);
+  }
+  return data;
+}
+function ensureContentImageColumn_(){
+  const sh=sheet_('SITE_CONTENT'),head=sh.getRange(1,1,1,sh.getLastColumn()).getDisplayValues()[0];
+  if(!head.includes('Image URL'))sh.getRange(1,sh.getLastColumn()+1).setValue('Image URL');
+}
+function updateCmsFields_(table,id,values){
+  const sh=sheet_(table),headers=sh.getRange(1,1,1,sh.getLastColumn()).getDisplayValues()[0];
+  const found=readRows_(sh).findIndex(r=>String(r[headers[0]])===String(id));
+  if(found<0)throw new Error('CMS record not found.');
+  const row=found+2;
+  Object.entries(values).forEach(([k,v])=>{const col=headers.indexOf(k)+1;if(!col)throw new Error('Unknown CMS field: '+k);sh.getRange(row,col).setValue(typeof v==='string'?safeCell_(v):v);});
+}
+function apiAdminEdit(token,data){
+  const actor=requireAdmin_(token,['Administrator','Content Manager','Tourism Operator']);
+  const type=safeText_(data.type,30),conf=cmsConfig_(type,String(actor.Role).toLowerCase()),id=safeText_(data.id,100);
+  const fields=cmsFields_(type,data.fields||{},conf.fields);
+  if(!Object.keys(fields).length)throw new Error('No fields supplied.');
+  if(type==='content')ensureContentImageColumn_();
+  const lock=LockService.getScriptLock();lock.waitLock(10000);
+  try{updateCmsFields_(conf.table,id,fields);}finally{lock.releaseLock();}
+  return {ok:true,message:'Changes saved. Publication status is managed separately.'};
+}
+function apiAdminCreate(token,data){
+  const actor=requireAdmin_(token,['Administrator','Content Manager','Tourism Operator']);
+  const type=safeText_(data.type,30),conf=cmsConfig_(type,String(actor.Role).toLowerCase());
+  const fields=cmsFields_(type,data.fields||{},conf.fields);
+  if(!String(fields.Title||'').trim())throw new Error('Title is required.');
+  if(type==='content')ensureContentImageColumn_();
+  const id=(type==='content'?'CNT-':type==='products'?'ART-':type==='experiences'?'EXP-':'INF-')+newId_().replace(/-/g,'').slice(0,12).toUpperCase();
+  const row={...fields,[APP.TABLES[conf.table][0]]:id,Status:'Draft','Created At':new Date(),'Updated At':new Date()};
+  const lock=LockService.getScriptLock();lock.waitLock(10000);
+  try{
+    if(type==='content'){
+      const sh=sheet_('SITE_CONTENT'),keys=sh.getRange(1,1,1,sh.getLastColumn()).getDisplayValues()[0];
+      sh.appendRow(keys.map(k=>typeof row[k]==='string'?safeCell_(row[k]):row[k]||''));
+    }else append_(conf.table,row);
+  }finally{lock.releaseLock();}
+  return {ok:true,id,message:'Draft created. Review and publish when ready.'};
 }
 function apiAdminUpdate(token,data){
   const actor=requireAdmin_(token,['Administrator','Content Manager','Tourism Operator']);const type=safeText_(data&&data.type,30),id=safeText_(data&&data.id,100),status=safeText_(data&&data.status,50);
-  const allowed={orders:['New','Accepted','In progress','Ready for dispatch','Dispatched','Completed','Cancelled'],payment:['Arrange directly','Awaiting confirmation','Confirmed','Refunded'],art:['New','Contacted','In progress','Completed','Closed'],tfc:['New','Contacted','Confirmed','Closed'],feedback:['Pending review','Approved','Rejected'],experiences:['Draft','Published','Unavailable'],information:['Draft','Published','Archived'],content:['Draft','Published','Archived']};
-  if(!allowed[type]||!allowed[type].includes(status))throw new Error('That update is not allowed.');if((type==='orders'||type==='payment'||type==='art')&&String(actor.Role).toLowerCase()!=='administrator')throw new Error('Only an administrator can manage customer orders and private art enquiries.');if((type==='tfc'||type==='feedback'||type==='experiences'||type==='information')&&String(actor.Role).toLowerCase()==='content manager')throw new Error('Your account cannot manage TFC records.');if(type==='content'&&!['administrator','content manager'].includes(String(actor.Role).toLowerCase()))throw new Error('Your account cannot publish customer notices.');
-  const name=({orders:'ORDER_REQUESTS',payment:'ORDER_REQUESTS',art:'ART_ENQUIRIES',tfc:'TFC_REQUESTS',feedback:'TFC_FEEDBACK',experiences:'EXPERIENCES',information:'TFC_INFORMATION',content:'SITE_CONTENT'})[type],idHeader=APP.TABLES[name][0];const lock=LockService.getScriptLock();lock.waitLock(10000);
+  const allowed={products:['Draft','Published','Sold','Archived'],orders:['New','Accepted','In progress','Ready for dispatch','Dispatched','Completed','Cancelled'],payment:['Arrange directly','Awaiting confirmation','Confirmed','Refunded'],art:['New','Contacted','In progress','Completed','Closed'],tfc:['New','Contacted','Confirmed','Closed'],feedback:['Pending review','Approved','Rejected'],experiences:['Draft','Published','Unavailable'],information:['Draft','Published','Archived'],content:['Draft','Published','Archived']};
+  if(!allowed[type]||!allowed[type].includes(status))throw new Error('That update is not allowed.');if((type==='products'||type==='orders'||type==='payment'||type==='art')&&String(actor.Role).toLowerCase()!=='administrator')throw new Error('Only an administrator can manage customer orders and private art enquiries.');if((type==='tfc'||type==='feedback'||type==='experiences'||type==='information')&&String(actor.Role).toLowerCase()==='content manager')throw new Error('Your account cannot manage TFC records.');if(type==='content'&&!['administrator','content manager'].includes(String(actor.Role).toLowerCase()))throw new Error('Your account cannot publish customer notices.');
+  const name=({products:'ART_CATALOG',orders:'ORDER_REQUESTS',payment:'ORDER_REQUESTS',art:'ART_ENQUIRIES',tfc:'TFC_REQUESTS',feedback:'TFC_FEEDBACK',experiences:'EXPERIENCES',information:'TFC_INFORMATION',content:'SITE_CONTENT'})[type],idHeader=APP.TABLES[name][0];const lock=LockService.getScriptLock();lock.waitLock(10000);
   try{
     const row=readRows_(sheet_(name)).find(r=>String(r[idHeader])===id);if(!row)throw new Error('Record not found.');const patch={};let current=statusOf_(type,row);
     if(type==='orders'){
@@ -230,6 +300,7 @@ function apiAdminUpdate(token,data){
       patch['Order Status']=status;patch['Updated At']=new Date();if(status==='Accepted')patch['Payment Status']='Awaiting confirmation';
       if(status==='Completed'&&String(row['Inventory Applied']).toLowerCase()==='yes')for(const item of items){const p=readRows_(stock).find(x=>String(x['Artc ID'])===String(item.id));if(p&&String(p['Artwork Type']).toLowerCase()==='original'&&Number(p['Stock Qty'])===0)updateById_('ART_CATALOG',p['Artc ID'],{'Status':'Sold','Updated At':new Date()});}
     } else if(type==='payment'){if(status==='Confirmed'&&(String(row['Order Status'])==='New'||String(row['Order Status'])==='Cancelled'||String(row['Inventory Applied']).toLowerCase()!=='yes'))throw new Error('Accept the request and reserve stock before confirming payment.');if(status==='Confirmed'){const ship=Number(row['Shipping INR']),total=Number(row['Total INR']);if(!Number.isFinite(ship)||ship<0||!Number.isFinite(total)||total<0||Math.abs(total-(Number(row['Subtotal INR'])+ship))>0.01)throw new Error('Enter the confirmed shipping fee and final total in the Sheet before marking payment confirmed.');}if(status==='Refunded'&&String(row['Payment Status'])!=='Confirmed')throw new Error('Only a manually confirmed payment can be marked refunded.');patch['Payment Status']=status;patch['Updated At']=new Date();}
+    else if(type==='products'){patch.Status=status;patch['Updated At']=new Date();if(status==='Published'&&(!row.Title||Number(row.Price)<0||Number(row['Stock Qty'])<1))throw new Error('Add title, valid price and stock before publishing artwork.');}
     else if(type==='art')Object.assign(patch,{Status:status,'Updated At':new Date()});
     else if(type==='tfc')Object.assign(patch,{Status:status,'Updated At':new Date(),'Staff Response':safeText_(data.note||row['Staff Response']||'',1000)});
     else if(type==='feedback')patch['Moderation Status']=status;
