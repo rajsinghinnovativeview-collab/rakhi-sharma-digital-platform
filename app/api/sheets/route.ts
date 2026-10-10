@@ -7,7 +7,7 @@ const allowedReads = new Set(["bootstrap", "health", "getart", "getproducts", "g
 const allowedWrites = new Set([
   "signup", "register", "registeruser", "verifyemail", "login", "logout", "dashboard", "getdashboard",
   "updateprofile", "changepassword", "startpasswordreset", "completepasswordreset", "submitorder", "createorder",
-  "artenquiry", "submitartenquiry", "tfcrequest", "submittfcrequest", "feedback", "submitfeedback", "admindashboard", "adminupdate",
+  "artenquiry", "submitartenquiry", "tfcrequest", "submittfcrequest", "feedback", "submitfeedback", "admindashboard", "adminupdate", "adminedit", "admincreate",
 ]);
 function endpoint() { return process.env.RAKHI_GAS_URL || FALLBACK_URL; }
 async function parseResponse(response: Response) {
