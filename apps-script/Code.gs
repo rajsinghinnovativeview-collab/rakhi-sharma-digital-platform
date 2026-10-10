@@ -101,10 +101,12 @@ function verifySetup() {
   if(missing.length)throw new Error(missing.join('\n'));
   SpreadsheetApp.getUi().alert('All required tabs and headers are present.');
 }
+function sheetValue_(value){return String(value == null ? '' : value).trim().toLowerCase();}
+function isSheetYes_(value){return value === true || sheetValue_(value)==='yes';}
 function apiBootstrap(token){
   const products=readRows_(sheet_('ART_CATALOG')).filter(r=>String(r.Status).toLowerCase()==='published'&&Number(r['Stock Qty'])>0).map(r=>pick_(r,['Artc ID','Title','Description','Price','Image URL','Status','Booking URL','Category','Artwork Type','Stock Qty','Medium','Dimensions','Gallery URLs','Featured']));
-  const experiences=readRows_(sheet_('EXPERIENCES')).filter(r=>String(r.Status).toLowerCase()==='published'&&String(r['Permissions Verified']).toLowerCase()==='yes'&&String(r.Availability).toLowerCase()==='available').map(r=>pick_(r,['Experience ID','Title','Description','Category','Price INR','Duration','Meeting Point','Image URL','Contact URL','Operator Name','Availability']));
-  const info=readRows_(sheet_('TFC_INFORMATION')).filter(r=>String(r.Status).toLowerCase()==='published'&&r['Verified By']&&r['Verified On']).map(r=>pick_(r,['Section','Title','Details','Address or Meeting Point','Verified Contact','Source / Verification Note','Verified On']));
+  const experiences=readRows_(sheet_('EXPERIENCES')).filter(r=>sheetValue_(r.Status)==='published'&&isSheetYes_(r['Permissions Verified'])&&sheetValue_(r.Availability)==='available').map(r=>pick_(r,['Experience ID','Title','Description','Category','Price INR','Duration','Meeting Point','Image URL','Contact URL','Operator Name','Availability']));
+  const info=readRows_(sheet_('TFC_INFORMATION')).filter(r=>sheetValue_(r.Status)==='published'&&String(r['Verified By']||'').trim()&&r['Verified On']).map(r=>pick_(r,['Section','Title','Details','Address or Meeting Point','Verified Contact','Source / Verification Note','Verified On']));
   const content=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)).filter(r=>audiencePublic_(r.Audience)).map(r=>pick_(r,['Title','Details','Link','Category']));
   let user=null;
   try{const account=requireUser_(token);user=publicUser_(account);}catch(ignore){}
