@@ -45,3 +45,19 @@
 .modal-update-image{width:100%;max-height:280px;object-fit:cover;display:block;margin:12px 0 22px;border:1px solid var(--line)}
 .brand-logo{width:88px;height:88px}.footer-logo{width:110px;height:110px}.header-inner{min-height:104px}
 @media(max-width:760px){.brand-logo{width:65px;height:65px}.footer-logo{width:90px;height:90px}.header-inner{min-height:82px}}
+
+/* Revision: image-free editorial news, distinct white logo surfaces, support and profile UI. */
+.update-card{min-height:245px;box-shadow:0 10px 22px #162c2009;border-top:3px solid var(--gold)}
+.update-copy{padding:28px}.update-copy .eyebrow{font-size:10px}
+.brand-logo,.footer-logo{background:#fffefa;object-fit:contain;border-radius:6px;padding:5px;box-shadow:0 0 0 1px #deddd3}
+.whatsapp-float{position:fixed;bottom:22px;right:18px;z-index:38;background:#24483c;color:white;padding:12px 16px;border-radius:40px;display:flex;align-items:center;gap:8px;box-shadow:0 8px 28px #162c2040;font-size:12px;font-weight:700}
+.whatsapp-welcome{position:fixed;right:18px;bottom:82px;width:min(340px,calc(100vw - 36px));z-index:39;background:#fffefa;border:1px solid #deddd3;box-shadow:0 12px 45px #162c2038;padding:25px 22px 18px;color:#29362f}
+.whatsapp-welcome>b{font:23px/1.2 var(--serif);color:#24483c}.whatsapp-welcome p{font-size:13px;color:#707970;margin:12px 0}
+.whatsapp-welcome .modal-close{top:7px;right:7px}
+.customer-profile{display:grid;gap:20px}.profile-heading{display:flex;align-items:center;gap:20px;padding:25px;background:#eaf0e9;border:1px solid #deddd3}
+.profile-initials{width:82px;height:82px;flex-shrink:0;display:grid;place-items:center;border-radius:50%;background:#24483c;color:#fffefa;font:30px var(--serif);border:3px solid #a78956}
+.profile-heading h3{margin:0;font:27px var(--serif)}.profile-heading p{font-size:12px;color:#707970;margin:4px 0 10px}
+.profile-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 22px}.profile-facts p{font-size:12px;margin:0;padding:11px;background:#f8f6ef;border:1px solid #deddd3;overflow-wrap:anywhere}
+.address-summary{padding:18px 22px;background:#f8f6ef;border:1px solid #deddd3}.address-summary p{margin:8px 0;font-size:13px}
+.experience-card .text-button{display:flex;margin-top:14px}
+@media(max-width:760px){.whatsapp-float{bottom:73px;right:12px}.whatsapp-welcome{bottom:132px;right:12px}.profile-facts{grid-template-columns:1fr}.profile-heading{padding:16px}.profile-initials{width:64px;height:64px}}
