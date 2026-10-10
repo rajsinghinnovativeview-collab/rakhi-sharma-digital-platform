@@ -60,6 +60,7 @@ function doPost(e) {
       case 'adminupdate': result=apiAdminUpdate(data.token,data); break;
       case 'adminedit': result=apiAdminEdit(data.token,data); break;
       case 'admincreate': result=apiAdminCreate(data.token,data); break;
+      case 'quickexperience': result=apiQuickExperience(data.token,data); break;
       default: throw new Error('Invalid POST action.');
     }
     return respond_(result);
@@ -109,7 +110,7 @@ function apiBootstrap(token){
   const products=readRows_(sheet_('ART_CATALOG')).filter(r=>String(r.Status).toLowerCase()==='published'&&Number(r['Stock Qty'])>0).map(r=>pick_(r,['Artc ID','Title','Description','Price','Image URL','Status','Booking URL','Category','Artwork Type','Stock Qty','Medium','Dimensions','Gallery URLs','Featured']));
   const experiences=readRows_(sheet_('EXPERIENCES')).filter(r=>sheetValue_(r.Status)==='published'&&isSheetYes_(r['Permissions Verified'])&&sheetValue_(r.Availability)==='available').map(r=>pick_(r,['Experience ID','Title','Description','Category','Price INR','Duration','Meeting Point','Image URL','Contact URL','Operator Name','Availability']));
   const info=readRows_(sheet_('TFC_INFORMATION')).filter(r=>sheetValue_(r.Status)==='published'&&String(r['Verified By']||'').trim()&&r['Verified On']).map(r=>pick_(r,['Section','Title','Details','Address or Meeting Point','Verified Contact','Source / Verification Note','Verified On']));
-  const content=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)).filter(r=>audiencePublic_(r.Audience)).map(r=>pick_(r,['Content ID','Title','Details','Link','Category','Image URL','Created At']));
+  const content=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)).filter(r=>audiencePublic_(r.Audience)).map(r=>pick_(r,['Content ID','Title','Details','Link','Category','Created At']));
   let user=null;
   try{const account=requireUser_(token);user=publicUser_(account);}catch(ignore){}
   return {ok:true,brand:{name:getSetting_('Platform Name','Rakhi Sharma'),art:getSetting_('Art Brand','Rak.Hi Arts'),tfc:getSetting_('TFC Brand','Orchha with Rakhi'),phone:getSetting_('Contact Phone','9219862077'),instagram:publicHttps_(getSetting_('Instagram',''))},products,experiences,info,content,user,payments:'Contact Rakhi directly; online payments are not connected.'};
@@ -159,14 +160,14 @@ function apiCompletePasswordReset(data){
 }
 function apiCustomerDashboard(token){
   const user=requireUser_(token),email=email_(user.Email),id=String(user.ID);
-  const customerOrders=readRows_(sheet_('ORDER_REQUESTS')).filter(r=>email_(r.Email)===email);
+  const customerOrders=readRows_(sheet_('ORDER_REQUESTS')).filter(r=>String(r['Customer ID']||'')===id||(!r['Customer ID']&&email_(r.Email)===email));
   const orders=customerOrders.map(r=>pick_(r,['Order ID','Created At','Item Summary','Subtotal INR','Shipping INR','Total INR','Payment Status','Order Status','Tracking Details','Updated At']));
   const art=readRows_(sheet_('ART_ENQUIRIES')).filter(r=>email_(r.Email)===email).map(r=>pick_(r,['Enquiry ID','Created At','Artwork Type','Description','Requested Date','Status','Updated At']));
   const tfc=readRows_(sheet_('TFC_REQUESTS')).filter(r=>email_(r.Email)===email).map(r=>pick_(r,['Request ID','Created At','Request Type','Preferred Date','Party Size','Message','Status','Staff Response','Updated At']));
-  const notices=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)&&noticeForUser_(r,user)).map(r=>pick_(r,['Content ID','Title','Details','Link','Category','Image URL','Created At']));
+  const notices=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)&&noticeForUser_(r,user)).map(r=>pick_(r,['Content ID','Title','Details','Link','Category','Created At']));
   const lastAddress=customerOrders.filter(r=>r.Address&&r.City&&r.State&&r['PIN Code']).sort((a,b)=>new Date(b['Created At']).getTime()-new Date(a['Created At']).getTime())[0];
   const savedAddress=lastAddress?pick_(lastAddress,['Recipient Name','Address','City','State','PIN Code']):null;
-  return {ok:true,user:publicUser_(user),orders,art,tfc,notices,savedAddress};
+  return {ok:true,user:{...publicUser_(user),'Account Status':user['Account Status'],'Last Login':user['Last Login']},orders,art,tfc,notices,savedAddress};
 }
 function apiUpdateProfile(token,data){const user=requireUser_(token),name=safeText_(data&&data.fullName,100),phone=safeText_(data&&data.phone||'',30);updateById_('CUSTOMERS',user.ID,{'Full Name':name,'Phone':phone});return {ok:true};}
 function apiChangePassword(token,data){
@@ -199,6 +200,19 @@ function apiSubmitArtEnquiry(data){
   const name=safeText_(data&&data.name,100),phone=safeText_(data&&data.phone||'',30),kind=safeText_(data&&data.artworkType||'Custom artwork',80),description=safeText_(data&&data.description,2000),url=httpsUrl_(data&&data.referenceImageUrl,true),budget=optionalMoney_(data&&data.budget),when=safeText_(data&&data.requestedDate||'',20),u=data&&data.token?optionalUser_(data.token):null;
   if(description.length<12)throw new Error('Please add a few details about your idea.');append_('ART_ENQUIRIES',{'Enquiry ID':'ART-'+newId_().slice(0,8).toUpperCase(),'Created At':new Date(),'Customer ID':u?u.ID:'','Full Name':name,'Email':email,'Phone':phone,'Artwork Type':kind,'Description':description,'Reference Image URL':url,'Budget INR':budget,'Requested Date':when,'Status':'New','Staff Notes':'','Updated At':new Date()});return {ok:true,message:'Your art enquiry has been sent. Rakhi will discuss the details with you.'};
 }
+/** One-click experience enquiries use only authenticated profile data and an approved experience. */
+function apiQuickExperience(token,data){
+  const user=requireUser_(token);
+  const experienceId=safeText_(data&&data.experienceId,100);
+  const exp=readRows_(sheet_('EXPERIENCES')).find(r=>String(r['Experience ID'])===experienceId && sheetValue_(r.Status)==='published'&&isSheetYes_(r['Permissions Verified'])&&sheetValue_(r.Availability)==='available');
+  if(!exp)throw new Error('This experience is not currently available for enquiry.');
+  const email=validateEmail_(user.Email);
+  limit_('quickexperience',email,4,3600);
+  const message='I would like to enquire about '+String(exp.Title||'this local experience')+'. Please contact me to confirm availability and details.';
+  const id='TFC-'+newId_().slice(0,8).toUpperCase();
+  append_('TFC_REQUESTS',{'Request ID':id,'Created At':new Date(),'Customer ID':user.ID,'Full Name':user['Full Name'],'Email':email,'Phone':user.Phone||'','Request Type':'Experience enquiry','Experience ID':experienceId,'Preferred Date':'','Party Size':1,'Message':message,'Status':'New','Staff Response':'','Meeting Point':'','Assigned Staff':'','Updated At':new Date()});
+  return {ok:true,requestId:id,message:'Your experience enquiry was sent. Rakhi will confirm date, availability and details. This is not a booking.'};
+}
 function apiSubmitTfcRequest(data){
   const email=validateEmail_(data&&data.email);limit_('tfc',email,4,3600);const name=safeText_(data&&data.name,100),phone=safeText_(data&&data.phone||'',30),kind=safeText_(data&&data.requestType||'Visitor assistance',80),experienceId=safeText_(data&&data.experienceId||'',100),when=safeText_(data&&data.preferredDate||'',20),party=Math.max(1,Math.min(100,Number(data&&data.partySize)||1)),message=safeText_(data&&data.message,2000),u=data&&data.token?optionalUser_(data.token):null;
   if(message.length<12)throw new Error('Please tell Rakhi a little about your visit or what you need.');if(experienceId&&!readRows_(sheet_('EXPERIENCES')).some(r=>String(r['Experience ID'])===experienceId&&String(r.Status).toLowerCase()==='published'&&String(r['Permissions Verified']).toLowerCase()==='yes'))throw new Error('This experience needs to be reconfirmed. Please send a general visit enquiry instead.');
@@ -217,7 +231,7 @@ function apiAdminDashboard(token){
 function cmsConfig_(type,role){
   const admin=role==='administrator',content=role==='content manager',tour=role==='tourism operator';
   const config={
-    content:{table:'SITE_CONTENT',fields:['Title','Details','Category','Link','Image URL','Audience','Email','Start At','End At'],roles:admin||content},
+    content:{table:'SITE_CONTENT',fields:['Title','Details','Category','Link','Audience','Email','Start At','End At'],roles:admin||content},
     products:{table:'ART_CATALOG',fields:['Title','Description','Category','Artwork Type','Medium','Dimensions','Price','Stock Qty','Image URL','Gallery URLs','Featured','Booking URL'],roles:admin},
     experiences:{table:'EXPERIENCES',fields:['Title','Description','Category','Price INR','Duration','Meeting Point','Image URL','Contact URL','Operator Name','Operator Contact','Availability'],roles:admin||tour},
     information:{table:'TFC_INFORMATION',fields:['Section','Title','Details','Address or Meeting Point','Verified Contact','Source / Verification Note'],roles:admin||tour}
@@ -256,7 +270,6 @@ function apiAdminEdit(token,data){
   const type=safeText_(data.type,30),conf=cmsConfig_(type,String(actor.Role).toLowerCase()),id=safeText_(data.id,100);
   const fields=cmsFields_(type,data.fields||{},conf.fields);
   if(!Object.keys(fields).length)throw new Error('No fields supplied.');
-  if(type==='content')ensureContentImageColumn_();
   const lock=LockService.getScriptLock();lock.waitLock(10000);
   try{updateCmsFields_(conf.table,id,fields);}finally{lock.releaseLock();}
   return {ok:true,message:'Changes saved. Publication status is managed separately.'};
@@ -266,7 +279,6 @@ function apiAdminCreate(token,data){
   const type=safeText_(data.type,30),conf=cmsConfig_(type,String(actor.Role).toLowerCase());
   const fields=cmsFields_(type,data.fields||{},conf.fields);
   if(!String(fields.Title||'').trim())throw new Error('Title is required.');
-  if(type==='content')ensureContentImageColumn_();
   const id=(type==='content'?'CNT-':type==='products'?'ART-':type==='experiences'?'EXP-':'INF-')+newId_().replace(/-/g,'').slice(0,12).toUpperCase();
   const row={...fields,[APP.TABLES[conf.table][0]]:id,Status:'Draft','Created At':new Date(),'Updated At':new Date()};
   const lock=LockService.getScriptLock();lock.waitLock(10000);
