@@ -160,12 +160,19 @@ function apiCompletePasswordReset(data){
 }
 function apiCustomerDashboard(token){
   const user=requireUser_(token),email=email_(user.Email),id=String(user.ID);
-  const customerOrders=readRows_(sheet_('ORDER_REQUESTS')).filter(r=>String(r['Customer ID']||'')===id||(!r['Customer ID']&&email_(r.Email)===email));
+  const customerOrders=readRows_(sheet_('ORDER_REQUESTS')).filter(r=>String(r['Customer ID']||'').trim()===id||email_(r.Email)===email);
   const orders=customerOrders.map(r=>pick_(r,['Order ID','Created At','Item Summary','Subtotal INR','Shipping INR','Total INR','Payment Status','Order Status','Tracking Details','Updated At']));
   const art=readRows_(sheet_('ART_ENQUIRIES')).filter(r=>email_(r.Email)===email).map(r=>pick_(r,['Enquiry ID','Created At','Artwork Type','Description','Requested Date','Status','Updated At']));
   const tfc=readRows_(sheet_('TFC_REQUESTS')).filter(r=>email_(r.Email)===email).map(r=>pick_(r,['Request ID','Created At','Request Type','Preferred Date','Party Size','Message','Status','Staff Response','Updated At']));
   const notices=readRows_(sheet_('SITE_CONTENT')).filter(r=>isPublished_(r)&&noticeForUser_(r,user)).map(r=>pick_(r,['Content ID','Title','Details','Link','Category','Created At']));
-  const lastAddress=customerOrders.filter(r=>r.Address&&r.City&&r.State&&r['PIN Code']).sort((a,b)=>new Date(b['Created At']).getTime()-new Date(a['Created At']).getTime())[0];
+  // Preserve Sheet row ordering for missing/invalid timestamps; favor the latest valid order.
+  const lastAddress=customerOrders
+    .map((r,index)=>({r,index,time:Date.parse(String(r['Created At']||''))}))
+    .filter(x=>String(x.r.Address||'').trim()&&String(x.r.City||'').trim()&&String(x.r.State||'').trim()&&String(x.r['PIN Code']||'').trim())
+    .sort((a,b)=>{
+      const aDate=Number.isFinite(a.time)?a.time:0,bDate=Number.isFinite(b.time)?b.time:0;
+      return bDate-aDate||b.index-a.index;
+    })[0]?.r;
   const savedAddress=lastAddress?pick_(lastAddress,['Recipient Name','Address','City','State','PIN Code']):null;
   return {ok:true,user:{...publicUser_(user),'Account Status':user['Account Status'],'Last Login':user['Last Login']},orders,art,tfc,notices,savedAddress};
 }
