@@ -24,3 +24,20 @@
 .hero-art-watercolor::before{content:"";display:block;position:absolute;inset:0;width:auto;height:auto;border:0;border-radius:0;background:linear-gradient(90deg,rgba(248,246,239,.85) 0%,rgba(248,246,239,.62) 35%,rgba(248,246,239,0) 70%)}
 .hero-art-watercolor .art-label{right:19px;bottom:18px}
 @media(max-width:760px){.brand-logo{width:57px;height:57px}.footer-logo{width:77px;height:77px}.header-inner{min-height:74px}.hero{min-height:580px;padding:45px 24px;margin-top:10px;align-items:flex-start}.hero-copy{width:100%;max-width:100%;padding:20px 4px}.hero-art-watercolor{background-position:59% center}.hero-art-watercolor::before{background:linear-gradient(90deg,rgba(248,246,239,.93) 0%,rgba(248,246,239,.84) 52%,rgba(248,246,239,.22) 100%)}.hero h1{font-size:clamp(42px,10vw,60px)}}
+
+/* Latest update cards and CMS workspace */
+.updates-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.update-card{background:var(--white);border:1px solid var(--line);overflow:hidden;display:flex;flex-direction:column;min-height:360px;box-shadow:0 10px 28px #162c200b}
+.update-cover{display:block;width:100%;height:175px;object-fit:cover;object-position:center}
+.update-cover-fallback{background:#f8f6ef url("https://i.ibb.co/Ng143r7X/Hand-Painted-Botanical-Art-Pattern-4.png") center/cover no-repeat}
+.update-copy{padding:22px;display:flex;flex-direction:column;align-items:flex-start;gap:8px;flex:1}
+.update-copy h3{font:26px/1.2 var(--serif);margin:0;color:var(--green)}
+.update-copy p{font-size:13px;color:var(--muted);line-height:1.65;flex:1;margin:0}
+.update-copy .text-button{margin-top:8px}
+.cms-summary{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:22px;background:var(--green2);margin:20px 0;border:1px solid var(--line)}
+.cms-summary h3{margin:0 0 5px;font:25px var(--serif);color:var(--green)}
+.cms-summary p{margin:0;color:var(--muted);font-size:12px}
+.saved-address-choice{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--green);padding-bottom:12px}.saved-address-choice input{accent-color:var(--green)}
+.order-tracker{display:block}.tracking-steps{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 6px}.tracking-steps span{font-size:10px;padding:6px 8px;border:1px solid var(--line);border-radius:2px;color:var(--muted)}.tracking-steps span.done{background:var(--green);color:white;border-color:var(--green)}
+@media(max-width:900px){.updates-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:610px){.updates-grid{grid-template-columns:1fr}.cms-summary{flex-direction:column;align-items:flex-start}.update-cover{height:205px}}
