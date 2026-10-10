@@ -118,7 +118,10 @@ export default function Home() {
     if (!token) { setSelectedExperience(null); navigate("account"); setMsg("Please sign in to send an experience enquiry instantly."); return; }
     setBusy(true);
     try { const res=await api("quickexperience",{token,experienceId:exp["Experience ID"]});setSelectedExperience(null);notify(res.message||"Experience enquiry sent.");void loadDashboard(); }
-    catch(e){notify(e instanceof Error?e.message:"Enquiry could not be sent.");}
+    catch(e){
+      const message=e instanceof Error?e.message:"Enquiry could not be sent.";
+      notify(/invalid post action/i.test(message)?"Instant enquiries require the latest Google Apps Script Web App deployment. Please contact the site administrator.":message);
+    }
     finally{setBusy(false);}
   };
   const changeAdmin = async (type: string, id: string, value: string) => { setBusy(true); try { const r = await api("adminupdate", { token, type, id, status: value }); notify(r.message || "Updated."); const d = await api("admindashboard", { token }); setStaff(d); } catch (e) { notify(e instanceof Error ? e.message : "Update failed."); } finally { setBusy(false); } };
