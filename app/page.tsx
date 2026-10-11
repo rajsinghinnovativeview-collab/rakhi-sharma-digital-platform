@@ -117,8 +117,31 @@ export default function Home() {
   const quickExperience = async (exp: Experience) => {
     if (!token) { setSelectedExperience(null); navigate("account"); setMsg("Please sign in to send an experience enquiry instantly."); return; }
     setBusy(true);
-    try { const res=await api("quickexperience",{token,experienceId:exp["Experience ID"]});setSelectedExperience(null);notify(res.message||"Experience enquiry sent.");void loadDashboard(); }
-    catch(e){notify(e instanceof Error?e.message:"Enquiry could not be sent.");}
+    try {
+      let res: ApiResult;
+      try { res=await api("quickexperience",{token,experienceId:exp["Experience ID"]}); }
+      catch (firstError) {
+        const firstMessage=firstError instanceof Error?firstError.message:"";
+        if (!/invalid post action/i.test(firstMessage)) throw firstError;
+        // Transitional compatibility for deployed Apps Script versions without quickexperience.
+        // Dashboard lookup authenticates the session before reusing the customer's account details.
+        const account=await api("dashboard",{token});
+        const verified=account.user;
+        if (!verified?.Email || !verified["Full Name"]) throw new Error("Please refresh your account details and try again.");
+        res=await api("tfcrequest",{
+          token, name:String(verified["Full Name"]), email:String(verified.Email),
+          phone:String(verified.Phone||""), requestType:"Experience enquiry",
+          experienceId:exp["Experience ID"], preferredDate:"", partySize:1,
+          message:"I would like to enquire about "+String(exp.Title||"this experience")+". Please contact me to confirm availability and details."
+        });
+      }
+      setSelectedExperience(null);
+      notify(res.message||"Experience enquiry sent.");
+      void loadDashboard();
+    } catch(e){
+      const message=e instanceof Error?e.message:"Enquiry could not be sent.";
+      notify(message);
+    }
     finally{setBusy(false);}
   };
   const changeAdmin = async (type: string, id: string, value: string) => { setBusy(true); try { const r = await api("adminupdate", { token, type, id, status: value }); notify(r.message || "Updated."); const d = await api("admindashboard", { token }); setStaff(d); } catch (e) { notify(e instanceof Error ? e.message : "Update failed."); } finally { setBusy(false); } };
