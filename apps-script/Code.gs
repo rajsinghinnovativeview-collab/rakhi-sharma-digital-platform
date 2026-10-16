@@ -115,18 +115,47 @@ function apiBootstrap(token){
   try{const account=requireUser_(token);user=publicUser_(account);}catch(ignore){}
   return {ok:true,brand:{name:getSetting_('Platform Name','Rakhi Sharma'),art:getSetting_('Art Brand','Rak.Hi Arts'),tfc:getSetting_('TFC Brand','Orchha with Rakhi'),phone:getSetting_('Contact Phone','9219862077'),instagram:publicHttps_(getSetting_('Instagram',''))},products,experiences,info,content,user,payments:'Contact Rakhi directly; online payments are not connected.'};
 }
+
+/**
+ * Transactional OTP via Resend. Store RESEND_API_KEY only in Script Properties.
+ * Never send API credentials to browser code or commit them to GitHub.
+ */
+function ensureOtpEmailConfigured_(){
+  if(!PropertiesService.getScriptProperties().getProperty('RESEND_API_KEY'))throw new Error('OTP email service is not configured.');
+}
+function sendOtpEmail_(recipient,subject,code,purpose){
+  ensureOtpEmailConfigured_();
+  const key=PropertiesService.getScriptProperties().getProperty('RESEND_API_KEY');
+  const safeCode=String(code);
+  const purposeText=purpose==='password reset'?'password reset':'email verification';
+  const textBody='Your Rak.Hi Arts '+purposeText+' code is '+safeCode+'. It expires in 10 minutes. If you did not request this, ignore this email.';
+  const htmlBody='<div style="background:#f8f5ef;padding:32px 16px;font-family:Arial,sans-serif;color:#252525"><div style="max-width:480px;margin:auto;background:white;border-radius:12px;padding:32px"><h2 style="margin:0 0 18px;color:#345043">Rak.Hi Arts</h2><p>Your '+purposeText+' code:</p><p style="font-size:32px;font-weight:bold;letter-spacing:7px;margin:20px 0">'+safeCode+'</p><p>This code expires in 10 minutes. Do not share it with anyone.</p><p style="font-size:12px;color:#666">If you did not request this email, you can safely ignore it.</p></div></div>';
+  const response=UrlFetchApp.fetch('https://api.resend.com/emails',{
+    method:'post',contentType:'application/json',
+    headers:{Authorization:'Bearer '+key},
+    payload:JSON.stringify({from:'Rak.Hi Arts <noreply@rakhiart.in>',to:[recipient],subject:subject,text:textBody,html:htmlBody}),
+    muteHttpExceptions:true
+  });
+  const status=response.getResponseCode();
+  if(status<200||status>=300){
+    // Do not log the API key, email address, code, or Resend response body.
+    console.error('OTP email delivery request failed with HTTP status '+status);
+    throw new Error('We could not send your verification email. Please try again later.');
+  }
+}
+
 function apiRegister(data){
   const name=safeText_(data&&data.fullName,100),email=validateEmail_(data&&data.email),phone=safeText_(data&&data.phone||'',30),password=data&&data.password;
   if(typeof password!=='string'||password.length<12||password.length>128)throw new Error('Use a password between 12 and 128 characters.');
   limit_('register',email,3,3600);
-  if(MailApp.getRemainingDailyQuota()<1)throw new Error('Registration email quota is unavailable. Please try again later or contact Rakhi.');
+  ensureOtpEmailConfigured_();
   const lock=LockService.getScriptLock();lock.waitLock(10000);
   try{
     if(readRows_(sheet_('CUSTOMERS')).some(r=>email_(r.Email)===email))throw new Error('An account already exists for this email. Sign in or contact Rakhi for help.');
     const id=newId_(),salt=newId_()+newId_();
     append_('CUSTOMERS',{'ID':id,'Full Name':name,'Email':email,'Phone':phone,'Password Hash':passwordHash_(password,salt),'Password Salt':salt,'Role':'Customer','Registered On':new Date(),'Account Status':'Pending verification','Marketing Consent':data.marketingConsent===true?'Yes':'No','Last Login':'','Session Version':1,'Staff Notes':''});
     const code=otp_();CacheService.getScriptCache().put(verifyKey_(email,code),id,600);
-    try{MailApp.sendEmail({to:email,subject:'Verify your Rak.Hi Arts account',body:'Your Rak.Hi Arts verification code is '+code+'. It expires in 10 minutes. If you did not request this account, ignore this message.'});}
+    try{sendOtpEmail_(email,'Verify your Rak.Hi Arts account',code,'verification');}
     catch(e){deleteById_('CUSTOMERS',id);throw new Error('We could not send verification email. Please contact Rakhi or try later.');}
     return {ok:true,needsVerification:true,message:'A 6-digit verification code has been sent to your email. It expires in 10 minutes.'};
   }finally{lock.releaseLock();}
@@ -153,7 +182,7 @@ function apiLogin(data){
 }
 function apiLogout(token){if(token)CacheService.getScriptCache().remove(sessionKey_(String(token)));return {ok:true};}
 function apiStartPasswordReset(data){
-  const email=validateEmail_(data&&data.email);limit_('passwordreset',email,3,3600);const generic={ok:true,message:'If an active account exists for that email, a reset code has been sent.'};const user=readRows_(sheet_('CUSTOMERS')).find(r=>email_(r.Email)===email&&String(r['Account Status']).toLowerCase()==='active');if(!user||MailApp.getRemainingDailyQuota()<1)return generic;const code=otp_();CacheService.getScriptCache().put('reset_'+digest_(email+'|'+code),String(user.ID),600);MailApp.sendEmail({to:email,subject:'Reset your Rak.Hi Arts password',body:'Your Rak.Hi Arts password reset code is '+code+'. It expires in 10 minutes. If you did not request this, ignore this email.'});return generic;
+  const email=validateEmail_(data&&data.email);limit_('passwordreset',email,3,3600);const generic={ok:true,message:'If an active account exists for that email, a reset code has been sent.'};const user=readRows_(sheet_('CUSTOMERS')).find(r=>email_(r.Email)===email&&String(r['Account Status']).toLowerCase()==='active');if(!user)return generic;const code=otp_();CacheService.getScriptCache().put('reset_'+digest_(email+'|'+code),String(user.ID),600);sendOtpEmail_(email,'Reset your Rak.Hi Arts password',code,'password reset');return generic;
 }
 function apiCompletePasswordReset(data){
   const email=validateEmail_(data&&data.email),code=String(data&&data.code||'').trim(),password=data&&data.newPassword;if(!/^\d{6}$/.test(code)||typeof password!=='string'||password.length<12||password.length>128)throw new Error('Check the code and use a new password between 12 and 128 characters.');limit_('resetverify',email,8,900);const cache=CacheService.getScriptCache(),key='reset_'+digest_(email+'|'+code),id=cache.get(key);if(!id)throw new Error('That reset code is incorrect or expired.');const user=readRows_(sheet_('CUSTOMERS')).find(r=>String(r.ID)===id&&email_(r.Email)===email&&String(r['Account Status']).toLowerCase()==='active');if(!user)throw new Error('This account cannot be reset. Contact Rakhi.');const salt=newId_()+newId_();updateById_('CUSTOMERS',user.ID,{'Password Salt':salt,'Password Hash':passwordHash_(password,salt),'Session Version':(Number(user['Session Version'])||1)+1});cache.remove(key);return {ok:true,message:'Password reset. Sign in with your new password.'};
