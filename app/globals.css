@@ -61,3 +61,15 @@
 .address-summary{padding:18px 22px;background:#f8f6ef;border:1px solid #deddd3}.address-summary p{margin:8px 0;font-size:13px}
 .experience-card .text-button{display:flex;margin-top:14px}
 @media(max-width:760px){.whatsapp-float{bottom:73px;right:12px}.whatsapp-welcome{bottom:132px;right:12px}.profile-facts{grid-template-columns:1fr}.profile-heading{padding:16px}.profile-initials{width:64px;height:64px}}
+
+.mail-page{min-height:100vh;background:var(--paper);display:flex;flex-direction:column}
+.mail-header{background:var(--white);border-bottom:1px solid var(--line);padding:12px max(22px,calc((100vw - 1160px)/2));display:flex;justify-content:space-between;align-items:center;gap:20px}
+.mail-brand{display:flex;align-items:center;gap:12px}.mail-brand img{object-fit:contain;background:white;border-radius:6px}
+.mail-brand strong{display:block;color:var(--green);font:23px var(--serif)}.mail-brand small{display:block;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.mail-back{font-size:13px;color:var(--green);font-weight:600}.mail-content{width:min(1160px,calc(100% - 32px));margin:30px auto;flex:1}
+.mail-heading{text-align:center;margin-bottom:22px}.mail-heading span{font-size:10px;letter-spacing:.19em;color:var(--gold);font-weight:700}
+.mail-heading h1{font:clamp(32px,5vw,48px) var(--serif);color:var(--green);margin:8px 0}.mail-heading p{color:var(--muted);margin:0}
+.mail-frame-shell{height:min(780px,78vh);min-height:520px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;box-shadow:var(--shadow)}
+.mail-iframe{width:100%;height:100%;border:0;background:white;display:block}.mail-note{font-size:12px;text-align:center;color:var(--muted);margin:14px auto;max-width:690px}
+.mail-footer{border-top:1px solid var(--line);padding:16px;text-align:center;color:var(--muted);font-size:11px}
+@media(max-width:640px){.mail-header{padding:10px 16px}.mail-brand strong{font-size:18px}.mail-brand small{font-size:9px}.mail-back{font-size:11px}.mail-content{width:100%;margin:22px auto}.mail-heading{padding:0 15px}.mail-frame-shell{border-radius:0;border-left:0;border-right:0;height:75vh;min-height:580px}.mail-note{padding:0 15px}}
