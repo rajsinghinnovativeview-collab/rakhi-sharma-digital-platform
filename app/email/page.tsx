@@ -24,9 +24,9 @@ export default function StaffEmailPage() {
           <p>Access your Rak.Hi Arts team mailbox through our secure mail provider.</p>
         </div>
         <div className="mail-frame-shell">
-          <iframe title="Rak.Hi Arts staff webmail sign in" src="https://mail.nevtan.com/login" className="mail-iframe" referrerPolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write" />
+          <iframe title="Rak.Hi Arts staff webmail sign in" src="/email/preview" className="mail-iframe" referrerPolicy="strict-origin-when-cross-origin" allow="clipboard-read; clipboard-write" />
         </div>
-        <p className="mail-note">Email sign-in is managed by our external mail provider. If the login does not display, the provider may not allow embedded access.</p>
+        <p className="mail-note">This is a non-functional visual test of the supplied NevTan login HTML. Do not enter your email password here. For real email access, use the official NevTan login.</p>
       </section>
       <footer className="mail-footer">© {new Date().getFullYear()} Rak.Hi Arts · Staff workspace</footer>
     </main>
