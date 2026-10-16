@@ -11,12 +11,12 @@ export default function Preview() {
     </aside>
     <section style={{display:"flex",alignItems:"center",justifyContent:"center",padding:"28px 16px"}}>
       <div style={{width:"100%",maxWidth:440,background:"white",padding:"clamp(20px,4vw,36px)",borderRadius:12,boxShadow:"0 22px 60px #0f172a1f"}}>
-        <div role="status" style={{background:"#fffbeb",border:"1px solid #fcd34d",padding:12,borderRadius:8,color:"#92400e",fontSize:13,marginBottom:24}}><strong>Visual test only.</strong> This locally hosted preview is not connected to NevTan authentication. Do not enter passwords.</div>
+        <div role="status" style={{background:"#fffbeb",border:"1px solid #fcd34d",padding:12,borderRadius:8,color:"#92400e",fontSize:13,marginBottom:24}}><strong>Login is handled by NevTan.</strong> Use the Sign in securely button to enter credentials on the official provider website.</div>
         <h2 style={{fontSize:30,margin:"0 0 10px"}}>Welcome back</h2><p style={{color:"#64748b",margin:"0 0 30px"}}>Sign in to your business email workspace.</p>
         <div style={{display:"grid",gap:17}}>
           <label style={{display:"grid",gap:7,fontSize:13,fontWeight:600}}>Email address<input disabled autoComplete="off" placeholder="name@yourdomain.com" style={{padding:15,border:"1px solid #cbd5e1",borderRadius:7,background:"#f8fafc"}} /></label>
           <label style={{display:"grid",gap:7,fontSize:13,fontWeight:600}}>Password<input disabled type="password" placeholder="••••••••" style={{padding:15,border:"1px solid #cbd5e1",borderRadius:7,background:"#f8fafc"}} /></label>
-          <button disabled style={{padding:15,background:"#0f766e",color:"white",border:"none",borderRadius:7,opacity:.6}}>Sign in (preview only)</button>
+          <a href="https://mail.nevtan.com/login" target="_blank" rel="noopener noreferrer" style={{padding:15,background:"#0f766e",color:"white",border:"none",borderRadius:7,textAlign:"center",fontWeight:700}}>Sign in securely ↗</a>
           <a href="https://mail.nevtan.com/login" target="_blank" rel="noopener noreferrer" style={{color:"#0f766e",fontSize:14,textAlign:"center"}}>Open official NevTan login ↗</a>
         </div>
       </div>
