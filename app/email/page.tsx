@@ -12,7 +12,7 @@ export default function StaffEmailPage() {
     <main className="mail-page">
       <header className="mail-header">
         <Link className="mail-brand" href="/" aria-label="Rak.Hi Arts home">
-          <img src="https://i.ibb.co/CptKtgPr/Forest-Gold-Monogram-Art-Logo-2.png" alt="" width={50} height={50} />
+          <img src="/email-assets/rakhi-email-logo.jpg" alt="" width={50} height={50} />
           <span><strong>Rak.Hi Arts</strong><small>Staff email workspace</small></span>
         </Link>
         <Link href="/" className="mail-back">← Back to website</Link>
